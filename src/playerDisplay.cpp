@@ -365,7 +365,7 @@ void playerDisplay::Display()
 		//ui_->file_.push_back(ui_->locations_);
 
 		//ui_->file_.push_back({ "bigbuckbunny_480x272.h265", "Dracula 480p.wmv", "big buck bunny", "Ottawa" });
-		ui_->url_.push_back({ "rtsp://192.168.0.100:8554/video1/unicast", "rtsp://192.168.0.100:8554/video3/unicast", "Yang Liu", "09/19/2016" });
+		ui_->url_.push_back({ "rtsp://192.168.0.100:8554/video1/unicast", "rtsp://192.168.0.100:8554/video3/unicast", "Yang Liu", "10/08/2016" });
 
 		ShowWindow(hwnd, SW_SHOWDEFAULT);
 		UpdateWindow(hwnd);
