@@ -69,12 +69,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 			else
 			{				
-				if (captureVideo_.realtime)
+				if (true)//(captureVideo_.realtime)
 				{
-					//if(captureVideo_.writeState_[0] == false && captureVideo_.writeState_[1] == false) //make sure the mat is finishing writing
-					//{
-					//	displayWindow_.Render(captureVideo_.frames_[0], captureVideo_.frames_[1]);
-					//}					
+					if(captureVideo_.writeState_[0] == false && captureVideo_.writeState_[1] == false) //make sure the mat is finishing writing
+					{
+						displayWindow_.Render(captureVideo_.frames_[0], captureVideo_.frames_[1]);
+					}					
 				}					
 				else
 				{

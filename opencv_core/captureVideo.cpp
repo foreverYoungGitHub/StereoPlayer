@@ -139,14 +139,14 @@ void captureVideo::captureFrame(int index)
 			if (!(frame.rows == height_ && frame.cols == width_))
 				resize(frame, frame, Size(width_, height_));
 			//Put frame to the queue
-			if (realtime)
+			//if (realtime)
 			{
 				writeState_[index] = true;
 				frames_[index] = frame;
 				writeState_[index] = false;
 			}				
 			//Put frame to the member variabale vector
-			else
+			//else
 			{
 				writeState_[index] = true;
 				frame_queue[index]->push(frame);
@@ -163,35 +163,47 @@ void captureVideo::captureFrame(int index)
 	frame.release();
 }
 
-//void captureVideo::convert2render(int index)
-//{
-//	Mat frame;
-//	while (true)
-//	{
-//		if (writeState_[index] == true)
-//			continue;
-//		if (frame_queue[index]->unsafe_size() == 0)
-//			continue;
-//		
-//		frame_queue[index]->try_pop(frame);	
-//
-//		if (!(frame.empty() || frame.at<uchar>(0, 0) == NULL)) //make sure it works well
-//		{
-//			unsigned char * imagedata = new unsigned char;
-//
-//			//cv::cvtColor(img_, img_, cv::COLOR_BGR2BGRA);
-//
-//			for (int j = 0; j < frame.rows; j++)
-//			{
-//				uchar* srcData = frame.ptr<uchar>(j);
-//				if (srcData != NULL)
-//					memcpy(imagedata + j * frame.cols * 4, srcData, frame.cols * 4);
-//			}
-//
-//			frame_ptr_[index]->push(imagedata);
-//		}
-//	}
-//}
+void captureVideo::convert2render(int index)
+{
+	Mat frame;
+	while (true)
+	{
+		waitKey(15);
+		if (writeState_[index] == true)
+			continue;
+		if (frame_queue[index]->unsafe_size() == 0)
+			continue;
+		
+		frame_queue[index]->try_pop(frame);	
+
+		if (!(frame.empty() || frame.at<uchar>(0, 0) == NULL)) //make sure it works well
+		{
+			
+
+			//cv::cvtColor(img_, img_, cv::COLOR_BGR2BGRA);
+			int linesize = frame.cols * 4;
+
+			unsigned char * imagedata = (unsigned char *)malloc(linesize * frame.rows);
+
+			for (int j = 0; j < frame.rows; j++)
+			{
+				uchar* srcData = frame.ptr<uchar>(j);
+				//unsigned char * dataloop = (unsigned char *)realloc(imagedata + j * linesize, linesize * 8 * sizeof(unsigned char));
+				//unsigned char * ptr = (unsigned char *)malloc(linesize * 8 * sizeof(unsigned char));
+				if (srcData != NULL)
+				{
+					memcpy(imagedata + j * linesize, srcData, linesize);
+					//ptr = imagedata + j * linesize;
+				}
+					
+				
+			}
+
+			frame_ptr_[index]->push(imagedata);
+		}
+		//waitKey(15);
+	}
+}
 
 void captureVideo::startCapture()
 {
@@ -241,7 +253,7 @@ void captureVideo::startCapture()
 		else
 		{
 			t = new thread(&captureVideo::captureFrame, this, i);
-			//t = new thread(&captureVideo::convert2render, this, i);
+			t = new thread(&captureVideo::convert2render, this, i);
 		}
 
 		//Put thread to the vector

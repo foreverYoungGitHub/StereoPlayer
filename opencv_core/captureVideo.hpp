@@ -29,7 +29,7 @@ public:
 	void captureFrame(int index); //capture the frames from each stream with single video
 	void captureStereoFrame(); //capture the frames from the stream with stereo video
 
-	//void convert2render(int index);
+	void convert2render(int index);
 
 	void setStereo(bool stereo);
 	

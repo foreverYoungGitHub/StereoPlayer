@@ -267,14 +267,17 @@ void displayWindow::render(cv::Mat img, D3DLOCKED_RECT lockedrect)
 
 	if (!(img_.empty() || img_.at<uchar>(0, 0) == NULL)) //make sure it works well
 	{
+		uchar* srcData = img_.ptr<uchar>(0, 0);
+		imagedata = (BYTE *)srcData;
+		//imagedata = (BYTE *)&img_;
 		//cv::cvtColor(img_, img_, cv::COLOR_BGR2BGRA);
 		
-		for (int j = 0; j < height; j++)
-		{
-			uchar* srcData = img_.ptr<uchar>(j);
-			if (srcData != NULL)
-				memcpy(imagedata + j * lockedrect.Pitch, srcData, width * 4);
-		}
+		//for (int j = 0; j < height; j++)
+		//{
+		//	uchar* srcData = img_.ptr<uchar>(j);
+		//	if (srcData != NULL)
+		//		memcpy(imagedata + j * lockedrect.Pitch, srcData, width * 4);
+		//}
 	}
 }
 
