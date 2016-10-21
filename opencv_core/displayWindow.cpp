@@ -277,3 +277,17 @@ void displayWindow::render(cv::Mat img, D3DLOCKED_RECT lockedrect)
 		}
 	}
 }
+
+//void displayWindow::transformLeft(unsigned char * frame_ptr)
+//{
+//	D3DLOCKED_RECT lockedrect;
+//
+//	RECT rc = { 0, 0, width, height };
+//
+//	gImageSrcLeft_->LockRect(&lockedrect, &rc, 0);
+//
+//	BYTE * imagedata = (BYTE *)lockedrect.pBits;
+//	imagedata = frame_ptr;
+//
+//	gImageSrcLeft_->UnlockRect();
+//}

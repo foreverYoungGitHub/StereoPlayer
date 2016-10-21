@@ -78,24 +78,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				}					
 				else
 				{
-					Mat leftImg, rightImg;
-					if (captureVideo_.camera_count == 1)
-					{
-						captureVideo_.frame_queue[0]->try_pop(leftImg);
-						captureVideo_.frame_queue[0]->try_pop(rightImg);
-					}
-					else
-					{
-						if ((captureVideo_.frame_queue[0]->unsafe_size() != 0) && (captureVideo_.frame_queue[1]->unsafe_size() != 0))
-						{						
-							captureVideo_.frame_queue[0]->try_pop(leftImg);
-							captureVideo_.frame_queue[1]->try_pop(rightImg);
-						}
-						else
-							continue;
-					}
+					//Mat leftImg, rightImg;
+					//if (captureVideo_.camera_count == 1)
+					//{
+					//	captureVideo_.frame_queue[0]->try_pop(leftImg);
+					//	captureVideo_.frame_queue[0]->try_pop(rightImg);
+					//}
+					//else
+					//{
+					//	if ((captureVideo_.frame_queue[0]->unsafe_size() != 0) && (captureVideo_.frame_queue[1]->unsafe_size() != 0))
+					//	{						
+					//		captureVideo_.frame_queue[0]->try_pop(leftImg);
+					//		captureVideo_.frame_queue[1]->try_pop(rightImg);
+					//	}
+					//	else
+					//		continue;
+					//}
 
-					displayWindow_.Render(leftImg, rightImg);
+					//displayWindow_.Render(leftImg, rightImg);
 				}
 			}
 				

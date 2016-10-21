@@ -147,51 +147,58 @@ void captureVideo::captureFrame(int index)
 			}				
 			//Put frame to the member variabale vector
 			else
+			{
+				writeState_[index] = true;
 				frame_queue[index]->push(frame);
+				while (frame_queue[index]->unsafe_size() > 5)
+				{
+					frame_queue[index]->try_pop(frame);
+				}
+				writeState_[index] = false;
+			}				
 		}
-		while (frame_queue[index]->unsafe_size() > 5)
-		{
-			frame_queue[index]->try_pop(frame);
-		}
+		
 	}
 	//relase frame resource
 	frame.release();
 }
 
-void captureVideo::convert2render(int index)
-{
-	Mat frame;
-	while (true)
-	{
-		
-		if (frame_queue[index]->unsafe_size() == 0)
-			continue;
-		
-		frame_queue[index]->try_pop(frame);
-
-		unsigned char * imagedata = new unsigned char;
-
-		if (!(frame.empty() || frame.at<uchar>(0, 0) == NULL)) //make sure it works well
-		{
-			//cv::cvtColor(img_, img_, cv::COLOR_BGR2BGRA);
-
-			for (int j = 0; j < frame.rows; j++)
-			{
-				uchar* srcData = frame.ptr<uchar>(j);
-				if (srcData != NULL)
-					memcpy(imagedata + j * frame.cols * 4, srcData, frame.cols * 4);
-			}
-		}
-	}
-	
-	
-}
+//void captureVideo::convert2render(int index)
+//{
+//	Mat frame;
+//	while (true)
+//	{
+//		if (writeState_[index] == true)
+//			continue;
+//		if (frame_queue[index]->unsafe_size() == 0)
+//			continue;
+//		
+//		frame_queue[index]->try_pop(frame);	
+//
+//		if (!(frame.empty() || frame.at<uchar>(0, 0) == NULL)) //make sure it works well
+//		{
+//			unsigned char * imagedata = new unsigned char;
+//
+//			//cv::cvtColor(img_, img_, cv::COLOR_BGR2BGRA);
+//
+//			for (int j = 0; j < frame.rows; j++)
+//			{
+//				uchar* srcData = frame.ptr<uchar>(j);
+//				if (srcData != NULL)
+//					memcpy(imagedata + j * frame.cols * 4, srcData, frame.cols * 4);
+//			}
+//
+//			frame_ptr_[index]->push(imagedata);
+//		}
+//	}
+//}
 
 void captureVideo::startCapture()
 {
 	VideoCapture *capture;
 	thread *t;
 	concurrent_queue<Mat> *q;
+	concurrent_queue<unsigned char *> *p;
 	bool writeState = true;
 
 	for (int i = 0; i < camera_count; i++)
@@ -221,13 +228,21 @@ void captureVideo::startCapture()
 
 			//Put queue to the vector
 			frame_queue.push_back(q);
+
+			p = new concurrent_queue<unsigned char *>;
+			frame_ptr_.push_back(p);
 		}
 
 		//Make thread instance
-		if(camera_count == 1)
+		if (camera_count == 1)
+		{
 			t = new thread(&captureVideo::captureStereoFrame, this);
+		}
 		else
+		{
 			t = new thread(&captureVideo::captureFrame, this, i);
+			//t = new thread(&captureVideo::convert2render, this, i);
+		}
 
 		//Put thread to the vector
 		camera_thread.push_back(t);

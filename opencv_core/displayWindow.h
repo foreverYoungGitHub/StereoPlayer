@@ -46,7 +46,7 @@ public:
 	//transform cv::mat to IDirect3DSurface9
 	void transformLeft(cv::Mat left);
 	void transformRight(cv::Mat right);
-
+	//void transformLeft(unsigned char * frame_ptr);
 
 	//void transformLeft();
 	//void transformRight();
