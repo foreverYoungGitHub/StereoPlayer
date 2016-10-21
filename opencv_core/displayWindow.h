@@ -50,7 +50,7 @@ public:
 
 	//void transformLeft();
 	//void transformRight();
-
+	void render(cv::Mat img, D3DLOCKED_RECT lockedrect);
 	void renderLoop(cv::Mat left, int height_start, int height_end, D3DLOCKED_RECT lockedrect);
 
 	int width = 1920, height = 1080;

@@ -42,7 +42,7 @@ captureVideo::captureVideo(vector<int> capture_index)
 	camera_index = capture_index;
 	camera_count = capture_index.size();
 	isUSBCamera = true;
-
+	realtime = realtime;
 	startCapture();
 }
 
@@ -57,8 +57,8 @@ void captureVideo::captureStereoFrame()
 {
 	VideoCapture *capture = camera_capture[0];
 	Mat frame;
-	frames_.push_back(frame);
-	frames_.push_back(frame);
+	//frames_.push_back(frame);
+	//frames_.push_back(frame);
 	mode_ = UPDOWN;
 	while (true)
 	{		
@@ -66,6 +66,7 @@ void captureVideo::captureStereoFrame()
 		(*capture) >> frame;
 		if (!frame.empty())
 		{
+			cv::cvtColor(frame, frame, cv::COLOR_BGR2BGRA);
 			//check the stereo way and resize it to suitable size
 			switch (mode_)
 			{
@@ -132,7 +133,8 @@ void captureVideo::captureFrame(int index)
 		//Grab frame from camera capture
 		(*capture) >> frame;
 		if(!frame.empty())
-		{ 
+		{ 			
+			cv::cvtColor(frame, frame, cv::COLOR_BGR2BGRA);
 			//resize it to suitable size
 			if (!(frame.rows == height_ && frame.cols == width_))
 				resize(frame, frame, Size(width_, height_));
@@ -142,17 +144,48 @@ void captureVideo::captureFrame(int index)
 				writeState_[index] = true;
 				frames_[index] = frame;
 				writeState_[index] = false;
-			}
-				
+			}				
 			//Put frame to the member variabale vector
 			else
 				frame_queue[index]->push(frame);
-		}		
+		}
+		while (frame_queue[index]->unsafe_size() > 5)
+		{
+			frame_queue[index]->try_pop(frame);
+		}
 	}
 	//relase frame resource
 	frame.release();
 }
 
+void captureVideo::convert2render(int index)
+{
+	Mat frame;
+	while (true)
+	{
+		
+		if (frame_queue[index]->unsafe_size() == 0)
+			continue;
+		
+		frame_queue[index]->try_pop(frame);
+
+		unsigned char * imagedata = new unsigned char;
+
+		if (!(frame.empty() || frame.at<uchar>(0, 0) == NULL)) //make sure it works well
+		{
+			//cv::cvtColor(img_, img_, cv::COLOR_BGR2BGRA);
+
+			for (int j = 0; j < frame.rows; j++)
+			{
+				uchar* srcData = frame.ptr<uchar>(j);
+				if (srcData != NULL)
+					memcpy(imagedata + j * frame.cols * 4, srcData, frame.cols * 4);
+			}
+		}
+	}
+	
+	
+}
 
 void captureVideo::startCapture()
 {
@@ -181,6 +214,15 @@ void captureVideo::startCapture()
 		//Put writing state
 		writeState_.push_back(writeState);
 
+		if (!realtime)
+		{
+			//Make a queue instance
+			q = new concurrent_queue<Mat>;
+
+			//Put queue to the vector
+			frame_queue.push_back(q);
+		}
+
 		//Make thread instance
 		if(camera_count == 1)
 			t = new thread(&captureVideo::captureStereoFrame, this);
@@ -190,14 +232,6 @@ void captureVideo::startCapture()
 		//Put thread to the vector
 		camera_thread.push_back(t);
 
-		if(!realtime)
-		{ 
-			//Make a queue instance
-			q = new concurrent_queue<Mat>;
-
-			//Put queue to the vector
-			frame_queue.push_back(q);
-		}
 	}
 }
 

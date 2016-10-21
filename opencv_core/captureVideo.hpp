@@ -29,12 +29,16 @@ public:
 	void captureFrame(int index); //capture the frames from each stream with single video
 	void captureStereoFrame(); //capture the frames from the stream with stereo video
 
+	void convert2render(int index);
+
 	void setStereo(bool stereo);
 	
 	
 	vector<string> camera_source; //holds camera stream urls
 	vector<int> camera_index; //holds usb camera indices
 	vector<VideoCapture*> camera_capture; //holds OpenCV VideoCapture pointers
+	//vector<vector<Mat>*> frame_vector;
+	vector<vector<unsigned long>*> frame_ptr_; //the pointer to the frame;
 	vector<concurrent_queue<Mat>*> frame_queue; //holds queue(s) which hold images from each camera
 	vector<Mat> frames_; //holds the image frames from each camera 
 	vector<thread*> camera_thread; //holds thread(s) which run the camera capture process
@@ -44,7 +48,7 @@ public:
 	int width_ = 1920, height_ = 1080; //the width and height of screen, for the full screen display
 
 	bool isUSBCamera = false;
-	bool realtime = true;
+	bool realtime = false;
 	bool stereo_ = true;
 	int camera_count;
 
