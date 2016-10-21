@@ -29,6 +29,15 @@ playerDecoder::~playerDecoder()
 
 bool playerDecoder::startCapture()
 {
+	if (decode_core_ == 0)
+		return startCapture_ffmpeg();
+	if (decode_core_ == 1)
+		return startCapture_cv();
+	return false;
+}
+
+bool playerDecoder::startCapture_ffmpeg()
+{
 	//AVFormatContext *pFormatCtx;
 	int				 videoindex;
 	AVCodecContext  *pCodecCtx;
@@ -120,7 +129,76 @@ bool playerDecoder::startCapture()
 	return true;
 }
 
+bool playerDecoder::startCapture_cv()
+{
+	cv::VideoCapture *capture;
+	std::thread *t;
+	concurrency::concurrent_queue<cv::Mat> *q;
+	//concurrency::concurrent_queue<unsigned char *> *p;
+	bool writeState = true;
+
+	for (int i = 0; i < camera_count_; i++)
+	{
+		//Make VideoCapture instance
+		if (!isUSBCamera) {
+			std::string url = camera_source_[i];
+			capture = new cv::VideoCapture(url);
+			std::cout << "Camera Setup: " << url << std::endl;
+		}
+		else {
+			int idx = camera_index_[i];
+			capture = new cv::VideoCapture(idx);
+			std::cout << "Camera Setup: " << std::to_string(idx) << std::endl;
+		}
+
+		//Put VideoCapture to the vector
+		camera_capture_.push_back(capture);
+
+		//Put writing state
+		//writeState_.push_back(writeState);
+
+		if (!realtime)
+		{
+			//Make a queue instance
+			q = new concurrency::concurrent_queue<cv::Mat>;
+
+			//Put queue to the vector
+			frame_queue.push_back(q);
+
+			//p = new concurrency::concurrent_queue<unsigned char *>;
+			//frame_ptr_.push_back(p);
+		}
+
+		//Make thread instance
+		if (camera_count_ == 1 && stereo_ == true)
+		{
+			t = new std::thread(&playerDecoder::captureStereoFrame, this);
+		}
+		else
+		{
+			t = new std::thread(&playerDecoder::Capture_cv, this, i);
+			//t = new thread(&captureVideo::convert2render, this, i);
+		}
+		//Put thread to the vector
+		camera_thread.push_back(t);
+
+	}
+}
+
 bool playerDecoder::Capture(int index)
+{
+	if (decode_core_ == 0)
+		return Capture_ffmpeg(index);
+	/*
+	opencv:since the capture part is already contain in a thread
+	it will not be call in this part
+	*/
+	//if (decode_core_ == 1)
+	//	return Capture_cv(index);
+	return false;
+}
+
+bool playerDecoder::Capture_ffmpeg(int index)
 {
 	if (!(av_read_frame(FormatCtx_[index], packet_[index]) >= 0))
 		return false;
@@ -142,7 +220,43 @@ bool playerDecoder::Capture(int index)
 	return true;
 }
 
+bool playerDecoder::Capture_cv(int index)
+{
+	cv::VideoCapture *capture = camera_capture_[index];
+	cv::Mat frame;
+	while (true)
+	{
+		//Grab frame from camera capture
+		(*capture) >> frame;
+		if (!frame.empty())
+		{
+			cv::cvtColor(frame, frame, cv::COLOR_BGR2BGRA);
+			//resize it to suitable size
+			if (!(frame.rows == dst_height_ && frame.cols == dst_width_))
+				cv::resize(frame, frame, cv::Size(dst_width_, dst_height_));
+			//Put frame to the queue
+			frame_queue[index]->push(frame);
+			while (frame_queue[index]->unsafe_size() > 5)
+			{
+				frame_queue[index]->try_pop(frame);
+			}
+		}
+	}
+	//relase frame resource
+	frame.release();
+	return true;
+}
+
 void playerDecoder::stopCapture()
+{
+	if (decode_core_ == 0)
+		return stopCapture_ffmpeg();
+	if (decode_core_ == 1)
+		return stopCapture_cv();
+	return;
+}
+
+void playerDecoder::stopCapture_ffmpeg()
 {
 	if (camera_source_.size() == 0)
 		return;
@@ -155,6 +269,20 @@ void playerDecoder::stopCapture()
 		av_frame_free(&Frame_[i]);
 		avcodec_close(CodecCtx_[i]);
 		avformat_close_input(&FormatCtx_[i]);
+	}
+}
+
+void playerDecoder::stopCapture_cv()
+{
+	cv::VideoCapture *cap;
+	for (int i = 0; i < camera_count_; i++)
+	{
+		cap = camera_capture_[i];
+		if (cap->isOpened()) {
+			//Relase VideoCapture resource
+			cap->release();
+			std::cout << "Capture " << i << " released" << std::endl;
+		}
 	}
 }
 
