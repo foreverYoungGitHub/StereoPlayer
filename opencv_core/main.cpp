@@ -68,35 +68,45 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				DispatchMessage(&msg);
 			}
 			else
-			{				
-				if (true)//(captureVideo_.realtime)
+			{
+				if ((captureVideo_.frame_ptr_[0]->unsafe_size() == 0) ||
+					(captureVideo_.frame_ptr_[1]->unsafe_size() == 0) )					)
 				{
-					if(captureVideo_.writeState_[0] == false && captureVideo_.writeState_[1] == false) //make sure the mat is finishing writing
-					{
-						displayWindow_.Render(captureVideo_.frames_[0], captureVideo_.frames_[1]);
-					}					
-				}					
-				else
-				{
-					//Mat leftImg, rightImg;
-					//if (captureVideo_.camera_count == 1)
-					//{
-					//	captureVideo_.frame_queue[0]->try_pop(leftImg);
-					//	captureVideo_.frame_queue[0]->try_pop(rightImg);
-					//}
-					//else
-					//{
-					//	if ((captureVideo_.frame_queue[0]->unsafe_size() != 0) && (captureVideo_.frame_queue[1]->unsafe_size() != 0))
-					//	{						
-					//		captureVideo_.frame_queue[0]->try_pop(leftImg);
-					//		captureVideo_.frame_queue[1]->try_pop(rightImg);
-					//	}
-					//	else
-					//		continue;
-					//}
-
-					//displayWindow_.Render(leftImg, rightImg);
+					unsigned char * leftImg, rightImg;
+					captureVideo_.frame_ptr_[0]->try_pop(leftImg);
+					captureVideo_.frame_ptr_[1]->try_pop(rightImg);
+					displayWindow_.Render(leftImg, rightImg);
 				}
+				else
+					continue;
+				// if (captureVideo_.realtime)
+				// {
+				// 	if(captureVideo_.writeState_[0] == false && captureVideo_.writeState_[1] == false) //make sure the mat is finishing writing
+				// 	{
+				// 		displayWindow_.Render(captureVideo_.frames_[0], captureVideo_.frames_[1]);
+				// 	}					
+				// }					
+				// else
+				// {
+				// 	Mat leftImg, rightImg;
+				// 	if (captureVideo_.camera_count == 1)
+				// 	{
+				// 		captureVideo_.frame_queue[0]->try_pop(leftImg);
+				// 		captureVideo_.frame_queue[0]->try_pop(rightImg);
+				// 	}
+				// 	else
+				// 	{
+				// 		if ((captureVideo_.frame_queue[0]->unsafe_size() != 0) && (captureVideo_.frame_queue[1]->unsafe_size() != 0))
+				// 		{						
+				// 			captureVideo_.frame_queue[0]->try_pop(leftImg);
+				// 			captureVideo_.frame_queue[1]->try_pop(rightImg);
+				// 		}
+				// 		else
+				// 			continue;
+				// 	}
+
+				// 	displayWindow_.Render(leftImg, rightImg);
+				// }
 			}
 				
 		}

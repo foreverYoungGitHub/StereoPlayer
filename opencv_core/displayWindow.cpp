@@ -131,6 +131,41 @@ bool displayWindow::Render(cv::Mat left, cv::Mat right)
 	return true;
 }
 
+bool displayWindow::Render(unsigned char * left, unsigned char * right)
+{
+	g_D3DDevice_->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(1, 0, 0, 0), 1.0f, 0);
+
+	g_D3DDevice_->BeginScene();
+
+	transformLeft(left);
+	g_D3DDevice_->StretchRect(gImageSrcLeft_, &srcRect, gImageSrcStereo_, &dstRect, D3DTEXF_LINEAR);
+
+
+	transformRight(right);	
+	g_D3DDevice_->StretchRect(gImageSrcRight_, &srcRect, gImageSrcStereo_, &dstRect2, D3DTEXF_LINEAR);
+
+	gImageSrcStereo_->LockRect(&lr, NULL, 0);
+
+	LPNVSTEREOIMAGEHEADER pSIH =
+		(LPNVSTEREOIMAGEHEADER)(((unsigned char *)lr.pBits) + (lr.Pitch * (height)));
+
+	pSIH->dwSignature = NVSTEREO_IMAGE_SIGNATURE;
+	pSIH->dwBPP = 32;
+	pSIH->dwFlags = SIH_SWAP_EYES;
+	pSIH->dwWidth = width * 2;
+	pSIH->dwHeight = height;
+
+	gImageSrcStereo_->UnlockRect();
+
+	g_D3DDevice_->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &gBackBuffer_);
+	g_D3DDevice_->StretchRect(gImageSrcStereo_, NULL, gBackBuffer_, NULL, D3DTEXF_LINEAR);
+	g_D3DDevice_->EndScene();
+	g_D3DDevice_->Present(NULL, NULL, NULL, NULL);
+
+
+	return true;
+}
+
 LRESULT WINAPI displayWindow:: MyWndProc(HWND hwnd, UINT msg, WPARAM wparma, LPARAM lparam)
 {
 	switch (msg) {
@@ -281,16 +316,30 @@ void displayWindow::render(cv::Mat img, D3DLOCKED_RECT lockedrect)
 	}
 }
 
-//void displayWindow::transformLeft(unsigned char * frame_ptr)
-//{
-//	D3DLOCKED_RECT lockedrect;
-//
-//	RECT rc = { 0, 0, width, height };
-//
-//	gImageSrcLeft_->LockRect(&lockedrect, &rc, 0);
-//
-//	BYTE * imagedata = (BYTE *)lockedrect.pBits;
-//	imagedata = frame_ptr;
-//
-//	gImageSrcLeft_->UnlockRect();
-//}
+void displayWindow::transformLeft(unsigned char * frame_ptr)
+{
+	D3DLOCKED_RECT lockedrect;
+
+	RECT rc = { 0, 0, width, height };
+
+	gImageSrcLeft_->LockRect(&lockedrect, &rc, 0);
+
+	BYTE * imagedata = (BYTE *)lockedrect.pBits;
+	imagedata = frame_ptr;
+
+	gImageSrcLeft_->UnlockRect();
+}
+
+void displayWindow::transformRight(unsigned char * frame_ptr)
+{
+	D3DLOCKED_RECT lockedrect;
+
+	RECT rc = { 0, 0, width, height };
+
+	gImageSrcRight_->LockRect(&lockedrect, &rc, 0);
+
+	BYTE * imagedata = (BYTE *)lockedrect.pBits;
+	imagedata = frame_ptr;
+
+	gImageSrcRight_->UnlockRect();
+}
