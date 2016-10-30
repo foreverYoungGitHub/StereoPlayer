@@ -214,20 +214,37 @@ bool playerDisplay::RenderStereoView()
 	return true;
 }
 
+//bool playerDisplay::Transform(int index)
+//{
+//	if (!decoder_->Capture(index))
+//		return -1;
+//
+//	gImageSrcSingle_->LockRect(&lr, NULL, 0);
+//
+//	BYTE* imagedata = (BYTE *)lr.pBits;
+//	avpicture_fill((AVPicture *)decoder_->FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, width, height);
+//	sws_scale(decoder_->img_convert_ctx_[index], decoder_->Frame_[index]->data, decoder_->Frame_[index]->linesize, 0, decoder_->CodecCtx_[index]->height, decoder_->FrameRGB_current_[index]->data, decoder_->FrameRGB_current_[index]->linesize);
+//
+//	//this code is replaced by the above code to reduce time 
+//	//for (int y = 0; y < height; y++)
+//	//	memcpy(imagedata + y*lr.Pitch, decoder_->FrameRGB_current_[index]->data[0] + y*decoder_->FrameRGB_current_[index]->linesize[0], width * 4);
+//
+//	gImageSrcSingle_->UnlockRect();
+//
+//	//for remuxer
+//	if (activeRemutexer())
+//	{
+//		decoder_->Remuxer(index);
+//	}
+//
+//	return true;
+//}
+
 bool playerDisplay::Transform(int index)
 {
-	if (!decoder_->Capture(index))
-		return -1;
-
 	gImageSrcSingle_->LockRect(&lr, NULL, 0);
-
-	BYTE* imagedata = (BYTE *)lr.pBits;
-	avpicture_fill((AVPicture *)decoder_->FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, width, height);
-	sws_scale(decoder_->img_convert_ctx_[index], decoder_->Frame_[index]->data, decoder_->Frame_[index]->linesize, 0, decoder_->CodecCtx_[index]->height, decoder_->FrameRGB_current_[index]->data, decoder_->FrameRGB_current_[index]->linesize);
-
-	//this code is replaced by the above code to reduce time 
-	//for (int y = 0; y < height; y++)
-	//	memcpy(imagedata + y*lr.Pitch, decoder_->FrameRGB_current_[index]->data[0] + y*decoder_->FrameRGB_current_[index]->linesize[0], width * 4);
+	
+	decoder_->Decode(index, lr);
 
 	gImageSrcSingle_->UnlockRect();
 
@@ -240,21 +257,52 @@ bool playerDisplay::Transform(int index)
 	return true;
 }
 
+//bool playerDisplay::TransformLeft()
+//{
+//	int index = 0;
+//	if (!decoder_->Capture(index))
+//		return -1;
+//
+//	//std::vector<BYTE*> image;
+//	//BYTE* imagedata;
+//	//avpicture_fill((AVPicture *)decoder_->FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, width, height);
+//	//sws_scale(decoder_->img_convert_ctx_[index], decoder_->Frame_[index]->data, decoder_->Frame_[index]->linesize, 0, decoder_->CodecCtx_[index]->height, decoder_->FrameRGB_current_[index]->data, decoder_->FrameRGB_current_[index]->linesize);
+//	//image.push_back(imagedata);
+//
+//	gImageSrcLeft_->LockRect(&lr, NULL, 0);	
+//	
+//	//BYTE* imagedata1 = (BYTE *)lr.pBits;
+//	//imagedata1 = image[0];
+//
+//	BYTE* imagedata = (BYTE *)lr.pBits;
+//	avpicture_fill((AVPicture *)decoder_->FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, width, height);
+//	sws_scale(decoder_->img_convert_ctx_[index], decoder_->Frame_[index]->data, decoder_->Frame_[index]->linesize, 0, decoder_->CodecCtx_[index]->height, decoder_->FrameRGB_current_[index]->data, decoder_->FrameRGB_current_[index]->linesize);
+//
+//	//this code is replaced by the above code to reduce time 
+//	//for (int y = 0; y < height; y++)
+//	//	memcpy(imagedata + y*lr.Pitch, decoder_->FrameRGB_current_[index]->data[0] + y*decoder_->FrameRGB_current_[0]->linesize[index], width * 4);
+//
+//	gImageSrcLeft_->UnlockRect();
+//
+//	//for remuxer
+//	if (activeRemutexer())
+//	{
+//		decoder_->Remuxer(index);
+//	}
+//
+//	return true;
+//}
+
 bool playerDisplay::TransformLeft()
 {
 	int index = 0;
-	if (!decoder_->Capture(index))
-		return -1;
+
+	//if (!decoder_->Capture(index))
+	//	return -1;
 
 	gImageSrcLeft_->LockRect(&lr, NULL, 0);
 
-	BYTE* imagedata = (BYTE *)lr.pBits;
-	avpicture_fill((AVPicture *)decoder_->FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, width, height);
-	sws_scale(decoder_->img_convert_ctx_[index], decoder_->Frame_[index]->data, decoder_->Frame_[index]->linesize, 0, decoder_->CodecCtx_[index]->height, decoder_->FrameRGB_current_[index]->data, decoder_->FrameRGB_current_[index]->linesize);
-
-	//this code is replaced by the above code to reduce time 
-	//for (int y = 0; y < height; y++)
-	//	memcpy(imagedata + y*lr.Pitch, decoder_->FrameRGB_current_[index]->data[0] + y*decoder_->FrameRGB_current_[0]->linesize[index], width * 4);
+	decoder_->Decode(index, lr);
 
 	gImageSrcLeft_->UnlockRect();
 
@@ -267,22 +315,44 @@ bool playerDisplay::TransformLeft()
 	return true;
 }
 
+//bool playerDisplay::TransformRight()
+//{
+//	int index = 1;
+//
+//	if (!decoder_->Capture(index))
+//		return -1;
+//
+//	gImageSrcRight_->LockRect(&lr, NULL, 0);
+//
+//	BYTE* imagedata = (BYTE *)lr.pBits;
+//	avpicture_fill((AVPicture *)decoder_->FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, width, height);
+//	sws_scale(decoder_->img_convert_ctx_[index], decoder_->Frame_[index]->data, decoder_->Frame_[index]->linesize, 0, decoder_->CodecCtx_[index]->height, decoder_->FrameRGB_current_[index]->data, decoder_->FrameRGB_current_[index]->linesize);
+//
+//	//this code is replaced by the above code to reduce time 
+//	//for (int y = 0; y < height; y++)
+//	//	memcpy(imagedata + y*lr.Pitch, decoder_->FrameRGB_current_[index]->data[0] + y*decoder_->FrameRGB_current_[index]->linesize[0], width * 4);
+//
+//	gImageSrcRight_->UnlockRect();
+//
+//	//for remuxer
+//	if (activeRemutexer())
+//	{
+//		decoder_->Remuxer(index);
+//	}
+//
+//	return true;
+//}
+
 bool playerDisplay::TransformRight()
 {
 	int index = 1;
 
-	if (!decoder_->Capture(index))
-		return -1;
+	//if (!decoder_->Capture(index))
+	//	return -1;
 
 	gImageSrcRight_->LockRect(&lr, NULL, 0);
 
-	BYTE* imagedata = (BYTE *)lr.pBits;
-	avpicture_fill((AVPicture *)decoder_->FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, width, height);
-	sws_scale(decoder_->img_convert_ctx_[index], decoder_->Frame_[index]->data, decoder_->Frame_[index]->linesize, 0, decoder_->CodecCtx_[index]->height, decoder_->FrameRGB_current_[index]->data, decoder_->FrameRGB_current_[index]->linesize);
-
-	//this code is replaced by the above code to reduce time 
-	//for (int y = 0; y < height; y++)
-	//	memcpy(imagedata + y*lr.Pitch, decoder_->FrameRGB_current_[index]->data[0] + y*decoder_->FrameRGB_current_[index]->linesize[0], width * 4);
+	decoder_->Decode(index, lr);
 
 	gImageSrcRight_->UnlockRect();
 
@@ -294,6 +364,7 @@ bool playerDisplay::TransformRight()
 
 	return true;
 }
+
 
 LRESULT WINAPI playerDisplay::WndProc(HWND hwnd, UINT msg, WPARAM wparma, LPARAM lparam)
 {
@@ -365,7 +436,7 @@ void playerDisplay::Display()
 		//ui_->file_.push_back(ui_->locations_);
 
 		//ui_->file_.push_back({ "bigbuckbunny_480x272.h265", "Dracula 480p.wmv", "big buck bunny", "Ottawa" });
-		ui_->url_.push_back({ "rtsp://192.168.0.100:8554/video1/unicast", "rtsp://192.168.0.100:8554/video3/unicast", "Yang Liu", "10/08/2016" });
+		ui_->url_.push_back({ "rtsp://192.168.0.101:8554/video1/unicast", "rtsp://192.168.0.101:8554/video3/unicast", "Yang Liu", "10/08/2016" });
 
 		ShowWindow(hwnd, SW_SHOWDEFAULT);
 		UpdateWindow(hwnd);

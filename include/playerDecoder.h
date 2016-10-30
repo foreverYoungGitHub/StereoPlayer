@@ -12,6 +12,9 @@ extern "C"
 #include <concurrent_queue.h>
 #include <fstream>
 #include <opencv2\opencv.hpp>
+#include <d3d9.h>
+#include <d3dx9.h>
+#include <mutex>
 
 class playerDecoder
 {
@@ -23,18 +26,34 @@ public:
 	
 	
 	bool startCapture();
+	bool startCapture_thread();
 	bool startCapture_cv();
+	bool startCapture_cv_thread();
 	bool startCapture_ffmpeg();
+	bool startCapture_ffmpeg_thread();
 
 	bool Capture(int index);
 	bool Capture_cv(int index);
+	bool Capture_cv_thread(int index);
 	bool Capture_ffmpeg(int index);	
+	bool Capture_ffmpeg_thread(int index);
 
 	void stopCapture();
 	void stopCapture_cv();
 	void stopCapture_ffmpeg();
+	
 
-	void Decode();
+	void Decode(unsigned char * imagedata, int index);
+	void Decode_cv(unsigned char * imagedata, int index);
+	void Decode_ffmpeg(unsigned char * imagedata, int index);
+	void Decode_cv_thread(unsigned char * imagedata, int index);
+	void Decode_ffmpeg_thread(unsigned char * imagedata, int index);
+
+	void Decode(int index, D3DLOCKED_RECT lockedrect);
+	void Decode_cv(int index, D3DLOCKED_RECT lockedrect);
+	void Decode_ffmpeg(int index, D3DLOCKED_RECT lockedrect);
+	void Decode_cv_thread(int index, D3DLOCKED_RECT lockedrect);
+	void Decode_ffmpeg_thread(int index, D3DLOCKED_RECT lockedrect);
 
 	bool InitRemuxer();
 	bool startRemuxer();
@@ -43,9 +62,15 @@ public:
 
 	bool writeCSV();
 
+	//common variable
+	std::vector<std::thread *> camera_thread_; //holds thread(s) which run the camera capture process
 	std::vector<std::string> stream_info_;
 	std::vector<std::string> camera_source_;
 	std::vector<std::string> write_name_;
+	int decode_core_ = 1; //the decoder core have two choice: ffmpeg (0) and opencv (1)
+	int thread_ = 1;
+
+	//the variable used for ffmpeg core
 	std::vector<AVFormatContext *> FormatCtx_;
 	std::vector<AVOutputFormat *> write_out_Format_;
 	std::vector<AVFormatContext *> write_in_FormatCtx_, write_out_FormatCtx_;
@@ -55,7 +80,7 @@ public:
 	std::vector<AVFrame *> Frame_;
 	std::vector<concurrency::concurrent_queue<AVFrame *> *> FrameRGB_queue_;
 	std::vector<AVFrame *> FrameRGB_current_;
-	std::vector<std::thread *> camera_thread_;
+	
 	std::vector<bool> decodeState_;
 	std::vector<struct SwsContext *> img_convert_ctx_;
 	std::vector<int> videoindex_;
@@ -73,14 +98,14 @@ public:
 	//the variable used for opencv core
 	std::vector<int> camera_index_; //holds usb camera indices
 	std::vector<cv::VideoCapture*> camera_capture_; //holds OpenCV VideoCapture pointers
-	std::vector<concurrency::concurrent_queue<cv::Mat>*> frame_queue; //holds queue(s) which hold images from each camera
-	std::vector<std::thread*> camera_thread; //holds thread(s) which run the camera capture process
+	std::vector<concurrency::concurrent_queue<cv::Mat>*> frame_queue_; //holds queue(s) which hold images from each camera
+	std::vector<cv::Mat> frame_cv_;
 
 	bool isUSBCamera = false;
 	bool realtime = false;
-	bool stereo_ = true;
+	bool stereo_ = false;
 
-	int decode_core_ = 0; //the decoder core have two choice: ffmpeg (0) and opencv (1)
+	std::mutex mtx_;
 
 };
 
