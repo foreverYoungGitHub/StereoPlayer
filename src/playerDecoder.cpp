@@ -11,13 +11,12 @@ playerDecoder::playerDecoder()
 playerDecoder::playerDecoder(std::vector<std::string> stream_source, int width, int height)
 {
 	stream_info_ = stream_source;
-	camera_source_ = { stream_source[0] };
-
+	camera_source_ = { stream_source[0], stream_source[1] };
 	camera_count_ = camera_source_.size();
 	dst_width_ = width;
 	dst_height_ = height;
-	decode_core_ = 1;
-	thread_ = 0;
+	decode_core_ = 0;
+	thread_ = 1;
 	av_register_all();
 	avformat_network_init();
 	//initialSuccess_ = startCapture_thread();
@@ -133,13 +132,6 @@ bool playerDecoder::startCapture_ffmpeg()
 		//put the packet to vector
 		img_convert_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, dst_width_, dst_height_, AV_PIX_FMT_RGB32, SWS_BICUBIC, NULL, NULL, NULL);
 		img_convert_ctx_.push_back(img_convert_ctx);
-
-		//put the queue to vector
-		if (!isCurrent_)
-		{
-			concurrency::concurrent_queue<AVFrame *> * q;
-			FrameRGB_queue_.push_back(q);
-		}
 	}
 
 	return true;
@@ -255,14 +247,12 @@ bool playerDecoder::startCapture_ffmpeg_thread()
 		img_convert_ctx_.push_back(img_convert_ctx);
 
 		//put the queue to vector
-		if (!isCurrent_)
-		{
-			concurrency::concurrent_queue<AVFrame *> * q;
-			FrameRGB_queue_.push_back(q);
-		}
+		concurrency::concurrent_queue<AVFrame *> * q;
+		q = new concurrency::concurrent_queue<AVFrame *>;
+		FrameRGB_queue_.push_back(q);
 
 		//put the thread to vector
-		t = new std::thread(&playerDecoder::Capture, this, i);
+		t = new std::thread(&playerDecoder::Capture_ffmpeg_thread, this, i);
 		camera_thread_.push_back(t);
 	}
 
@@ -359,10 +349,10 @@ bool playerDecoder::Capture_ffmpeg(int index)
 
 bool playerDecoder::Capture_ffmpeg_thread(int index)
 {
-	AVFrame * frame;
+	//AVFrame * frame;
 	while (true)
 	{
-		frame = av_frame_alloc();
+		AVFrame * frame = av_frame_alloc();
 		if (!(av_read_frame(FormatCtx_[index], packet_[index]) >= 0))
 			continue;
 		if (!(packet_[index]->stream_index == videoindex_[index]))
@@ -378,8 +368,9 @@ bool playerDecoder::Capture_ffmpeg_thread(int index)
 		{
 			continue;
 		}
-		
+		mtx_.lock();
 		FrameRGB_queue_[index]->push(frame);
+		mtx_.unlock();
 	}
 	return true;
 }
@@ -508,8 +499,14 @@ void playerDecoder::Decode(unsigned char * imagedata, int index)
 
 void playerDecoder::Decode_ffmpeg(unsigned char * imagedata, int index)
 {
-	//TO DO
-	return;
+	if (!Capture(index))
+		return;
+
+	//imagedata = (unsigned char *)malloc(linesize * frame.rows);
+
+	//this code is replaced by the above code to reduce time 	
+	avpicture_fill((AVPicture *)FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, dst_width_, dst_height_);
+	sws_scale(img_convert_ctx_[index], Frame_[index]->data, Frame_[index]->linesize, 0, CodecCtx_[index]->height, FrameRGB_current_[index]->data, FrameRGB_current_[index]->linesize);
 }
 
 void playerDecoder::Decode_cv(unsigned char * imagedata, int index)
@@ -539,7 +536,14 @@ void playerDecoder::Decode_cv(unsigned char * imagedata, int index)
 
 void playerDecoder::Decode_ffmpeg_thread(unsigned char * imagedata, int index)
 {
-	//TO DO
+	FrameRGB_queue_[index]->try_pop(Frame_[index]);
+
+	//imagedata = (unsigned char *)malloc(linesize * frame.rows);
+
+	//this code is replaced by the above code to reduce time 	
+	avpicture_fill((AVPicture *)FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, dst_width_, dst_height_);
+	sws_scale(img_convert_ctx_[index], Frame_[index]->data, Frame_[index]->linesize, 0, CodecCtx_[index]->height, FrameRGB_current_[index]->data, FrameRGB_current_[index]->linesize);
+
 }
 
 void playerDecoder::Decode_cv_thread(unsigned char * imagedata, int index)
@@ -623,7 +627,13 @@ void playerDecoder::Decode_cv(int index, D3DLOCKED_RECT lockedrect)
 
 void playerDecoder::Decode_ffmpeg_thread(int index, D3DLOCKED_RECT lockedrect)
 {
-	//TO DO
+	//AVFrame * Frame, * FrameRGB_current;
+	FrameRGB_queue_[index]->try_pop(Frame_[index]);
+
+	BYTE* imagedata = (BYTE *)lockedrect.pBits;
+	avpicture_fill((AVPicture *)FrameRGB_current_[index], imagedata, AV_PIX_FMT_RGB32, dst_width_, dst_height_);
+	sws_scale(img_convert_ctx_[index], Frame_[index]->data, Frame_[index]->linesize, 0, CodecCtx_[index]->height, FrameRGB_current_[index]->data, FrameRGB_current_[index]->linesize);
+
 }
 
 void playerDecoder::Decode_cv_thread(int index, D3DLOCKED_RECT lockedrect)

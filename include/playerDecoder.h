@@ -87,7 +87,7 @@ public:
 	std::vector<concurrency::concurrent_queue<unsigned char *>*> frame_ptr_; //the pointer to the frame;
 	
 
-	bool isCurrent_ = true;
+	//bool isCurrent_ = true;
 	int videoMode = 0; // video mode same to the ui part, if video mode  0 = left, 1 = right, 2 = stereo
 
 	int camera_count_;
