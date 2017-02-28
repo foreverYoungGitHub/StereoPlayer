@@ -1,10 +1,7 @@
-#include"playerDisplay.h"
-
-int main(int, char**)
-{
-	playerDisplay * player = new playerDisplay();
-
-	player->Display();
-
-	player->Shutdown();
-}
+//#include "../inc/viewer.h"
+//
+//int main()
+//{
+//	Viewer * player = new Viewer();
+//	player->Display();
+//}
