@@ -19,6 +19,8 @@ Viewer::Viewer()
 	if (hwnd_ == NULL) {
 		return;
 	}
+
+	g_controller = new Controller();
 }
 
 Viewer::~Viewer() {
@@ -113,8 +115,8 @@ int Viewer::Reader() {
 
 	if (g_decode_status.visual_status == 0)
 	{
-		if (FAILED(D3DXLoadSurfaceFromFile(single_src_surface, NULL, NULL, ".//resources//background.jpg", NULL, D3DX_FILTER_NONE, 0, NULL)))
-			return false;
+		//if (FAILED(D3DXLoadSurfaceFromFile(single_src_surface, NULL, NULL, ".//resources//background.jpg", NULL, D3DX_FILTER_NONE, 0, NULL)))
+		//	return false;
 		dst_surface_ = single_src_surface;
 	}
 	else if (g_decode_status.visual_status == 1)
@@ -142,6 +144,8 @@ int Viewer::Reader() {
 
 		dst_surface_ = stereo_src_surface;
 	}
+
+	return true;
 }
 
 int Viewer::Render() {
