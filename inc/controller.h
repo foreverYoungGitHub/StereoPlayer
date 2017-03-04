@@ -3,6 +3,34 @@
 #include <vector>
 #include <d3d9.h>
 
+struct WindowSize {
+	LPCSTR name;
+	int width;
+	int height;
+	bool fullscreen;
+
+	WindowSize() : name("Player"), width(1920), height(1080), fullscreen(false) {}
+	WindowSize(int w, int h) : name("Player"), width(w), height(h), fullscreen(false) {}
+};
+
+struct DecodeStatus {
+
+	//the status for display mode, 0 means homepage, 1 means capture video
+	//one channel video, 2 means stereo video
+	int visual_status;
+	int video_mode;
+	int decode_core;
+	bool write_file;
+	bool multi_thread;
+	std::vector<std::string> input_address;
+	std::vector<std::string> output_address;
+	DecodeStatus() :visual_status(0), write_file(0), multi_thread(0) {}
+};
+
+struct VideoInfo {
+
+};
+
 class Controller {
 public:
 	Controller();
@@ -19,6 +47,12 @@ public:
 	int PlaylistUI();
 
 	int Shutdown();
+
+	int BuildConnection();
+
+	int Disconnection();
+
+	std::string get_current_time();
 
 	int ReadCSV();
 	int WriteCSV();
@@ -44,3 +78,8 @@ private:
 	Playlist playlist_status_;
 	
 };
+
+extern Controller * g_controller;
+extern WindowSize g_window_size;
+extern DecodeStatus g_decode_status;
+extern VideoInfo g_video_info;

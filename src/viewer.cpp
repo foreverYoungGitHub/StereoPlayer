@@ -1,10 +1,10 @@
 #include "../inc/viewer.h"
-#include "../inc/utils.h"
+//#include "../inc/utils.h"
 #include "../inc/controller.h"
 #include "../IMGUI/imgui.h"
 #include "../IMGUI/imgui_impl_dx9.h"
 
-Controller * g_controller;
+//Controller * g_controller;
 
 Viewer::Viewer()
 {

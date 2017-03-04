@@ -1,14 +1,18 @@
 #include "../inc/controller.h"
-#include "../inc/utils.h"
+#include "../inc/decoder.h";
+
+//#include "../inc/utils.h"
 #include "../IMGUI/imgui.h"
 #include "../IMGUI/imgui_impl_dx9.h"
 #include <fstream>
+#include <ctime>
 
 #define IM_ARRAYSIZE(_ARR)  ((int)(sizeof(_ARR)/sizeof(*_ARR)))
 
 WindowSize g_window_size;
 DecodeStatus g_decode_status;
 VideoInfo g_video_info;
+Controller * g_controller = new Controller();
 
 Controller::Controller(){
 }
@@ -40,6 +44,18 @@ int Controller::Shutdown(){
 	return true;
 }
 
+std::string Controller::get_current_time() {
+	time_t t = time(0);
+	struct tm * now = localtime(&t);
+	std::stringstream current_time;
+	current_time << (now->tm_year + 1900) << '_'
+		<< (now->tm_mon + 1) << '_'
+		<< now->tm_mday << '_'
+		<< now->tm_hour << '_'
+		<< now->tm_min ;
+
+	return current_time.str();
+}
 
 int Controller::ReadCSV() {
 	std::string address = playlist_status_.save_file_address + playlist_status_.address_end[playlist_status_.input_mode];
@@ -113,6 +129,50 @@ int Controller::WriteCSV(std::string address) {
 	return true;
 }
 
+int Controller::BuildConnection() {
+
+	g_decode_status.input_address.clear();
+
+	if (playlist_status_.input_mode == 0)
+	{
+		std::string address;
+		address = "rtsp://" + playlist_status_.playlist_items[playlist_status_.select_item] + "/video1/unicast";
+		g_decode_status.input_address.push_back(address);
+		address = "rtsp://" + playlist_status_.playlist_items[playlist_status_.select_item] + "/video3/unicast";
+		g_decode_status.input_address.push_back(address);
+	}
+
+	else if (playlist_status_.input_mode == 1)
+	{
+		std::string address;
+		address = playlist_status_.save_file_address + playlist_status_.playlist_items[playlist_status_.select_item] + "_left.mp4";
+		g_decode_status.input_address.push_back(address);
+		address = playlist_status_.save_file_address + playlist_status_.playlist_items[playlist_status_.select_item] + "_right.mp4";
+		g_decode_status.input_address.push_back(address);
+	}
+
+	if (g_decode_status.write_file == true)
+	{
+		g_decode_status.output_address.clear();
+
+		std::string address;
+		address = playlist_status_.save_file_address + get_current_time() + "_left.mp4";
+		g_decode_status.output_address.push_back(address);
+		address = playlist_status_.save_file_address + get_current_time() + "_right.mp4";
+		g_decode_status.output_address.push_back(address);
+	}
+
+	g_decoder = new Decoder();
+
+	return true;
+}
+
+int Controller::Disconnection() {
+	g_decoder->~Decoder();
+	
+	return true;
+}
+
 int Controller::MainUI() {
 	// the signal for window flags 
 	static bool no_titlebar = false;
@@ -157,6 +217,7 @@ int Controller::MainUI() {
 		if (ImGui::Button("Stop Play"))
 		{
 			playlist_status_.exist = 0;
+			Disconnection();
 		}
 	}
 
@@ -251,6 +312,7 @@ int Controller::PlaylistUI() {
 	{
 		if (ImGui::Button("Connect"))
 		{
+			BuildConnection();
 		}
 
 		ImGui::SameLine(150);
