@@ -1,4 +1,3 @@
-#pragma once
 extern "C"
 {
 #include "libavcodec/avcodec.h"  
@@ -17,39 +16,58 @@ extern "C"
 #include <concurrent_queue.h>
 #include <mutex>
 
+struct DecodeStatus;
+
 class Decoder {
 public:
 	Decoder();
 
+	Decoder(DecodeStatus *);
+
 	~Decoder();
 
+	int Decode(int index, D3DLOCKED_RECT lockedrect);
+
+private:
 	int Init();
 	int Init_ffmpeg();
 	int Init_ffmpeg_thread();
 	int Init_cv();
 	int Init_cv_thread();
 
+	int Capture(int i);
+	int Capture_ffmpeg(int index);
+	int Capture_ffmpeg_thread(int index);
+	int Capture_cv(int index);
+	int Capture_cv_thread(int index);
+	
+	int stopCapture();
+	int stopCapture_cv();
+	int stopCapture_ffmpeg();
 
-	int update_window_status();
+	int Decode_cv(int index, D3DLOCKED_RECT lockedrect);
+	int Decode_ffmpeg(int index, D3DLOCKED_RECT lockedrect);
+	int Decode_cv_thread(int index, D3DLOCKED_RECT lockedrect);
+	int Decode_ffmpeg_thread(int index, D3DLOCKED_RECT lockedrect);
 
-	//int Demux();
-	int Demux(int index);
+	int InitRemux(int index);
+	int InitRemux_ffmpeg(int index);
+	int InitRemux_cv(int index);
 
-	int Decode();
+	int Remux(int index);
+	int Remux_ffmpeg(int index);
+	int Remux_cv(int index);
 
-private:
+	int stopRemux();
+	int stopRemux_ffmpeg();
+	int stopRemux_cv();
+	
 
 	//common variable copy from global
-	std::vector<std::string> input_address_;
-	std::vector<std::string> output_address_;
-	int camera_count_;
-	bool write_file_;
+	DecodeStatus * decode_status_;
 	std::vector<std::thread *> camera_thread_; //holds thread(s) which run the camera capture process
-	int dst_width_, dst_height_;
-	int decode_core_; //the decoder core have two choice: ffmpeg (0) and opencv (1)
-	int thread_;
-	int video_mode_;
-
+	bool hold_thread_;
+	std::mutex mtx_;
 
 	//the variable used for opencv core
 	std::vector<int> camera_index_; //holds usb camera indices
@@ -64,11 +82,12 @@ private:
 	std::vector<AVCodecContext *> CodecCtx_;
 	std::vector<AVCodec *> Codec_;
 	std::vector<AVPacket *> packet_;
+	std::vector<concurrency::concurrent_queue<AVPacket *> *> packet_queue_;
 	std::vector<AVFrame *> Frame_;
 	std::vector<concurrency::concurrent_queue<AVFrame *> *> FrameRGB_queue_;
 	std::vector<AVFrame *> FrameRGB_current_;
 	std::vector<struct SwsContext *> img_convert_ctx_;
 	std::vector<int> videoindex_;
+	std::vector<int> stream_mapping_size_;
+	std::vector<int *> stream_mapping_;
 };
-
-extern Decoder * g_decoder;

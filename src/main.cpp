@@ -1,7 +1,10 @@
-#include "../inc/viewer.h"
+#include "../inc/controller.hpp"
 
 int main()
 {
-	Viewer * player = new Viewer();
-	player->Display();
+	Controller * c = new Controller();
+	
+	c->Display();
+
+	return true;
 }

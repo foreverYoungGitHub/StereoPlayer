@@ -1,10 +1,9 @@
-#include "../inc/viewer.h"
-//#include "../inc/utils.h"
-#include "../inc/controller.h"
+#include "../inc/viewer.hpp"
+#include "../inc/controller.hpp"
+#include "../inc/decoder.hpp"
+#include "../inc/ui.hpp"
 #include "../IMGUI/imgui.h"
 #include "../IMGUI/imgui_impl_dx9.h"
-
-//Controller * g_controller;
 
 Viewer::Viewer()
 {
@@ -12,37 +11,44 @@ Viewer::Viewer()
 		GetModuleHandle(NULL), NULL, LoadCursor(NULL, IDC_ARROW), NULL, NULL,
 		WINDOW_CLASS, NULL };
 	RegisterClassEx(&wc_);
-	hwnd_ = CreateWindow(WINDOW_CLASS, g_window_size.name, WS_OVERLAPPEDWINDOW,
-		0, 0, g_window_size.width, g_window_size.height, NULL, NULL,//GetDesktopWindow(), NULL,
+	hwnd_ = CreateWindow(WINDOW_CLASS, window_size_.name, WS_OVERLAPPEDWINDOW,
+		0, 0, window_size_.width, window_size_.height, NULL, NULL,//GetDesktopWindow(), NULL,
 		wc_.hInstance, NULL);
-	
+
 	if (hwnd_ == NULL) {
 		return;
 	}
 
-	g_controller = new Controller();
+	int a = 0;
+}
+
+Viewer::Viewer(Controller * _controller):Viewer()
+{
+	controller_ = _controller;
 }
 
 Viewer::~Viewer() {
-
+	msg_.message = WM_QUIT;
 }
 
-int Viewer::Display(){
-	if (Init()){
+int Viewer::Display() {
+	if (Init()) {
 
-		g_controller->Init(hwnd_, g_D3DDevice);
+		controller_->ui_->Init(hwnd_, g_D3DDevice);
 
 		ShowWindow(hwnd_, SW_SHOWDEFAULT);
 		UpdateWindow(hwnd_);
 
-		while (msg_.message != WM_QUIT){
+		while (msg_.message != WM_QUIT) {
 			if (PeekMessage(&msg_, NULL, 0U, 0U, PM_REMOVE))
 			{
 				TranslateMessage(&msg_);
 				DispatchMessage(&msg_);
 				continue;
 			}
-			g_controller->Update();
+			
+			controller_->ui_->Update();
+			//ui_->Init(hwnd_, g_D3DDevice);
 			Reader();
 			Render();
 		}
@@ -68,11 +74,11 @@ int Viewer::Init() {
 
 	ZeroMemory(&g_d3dpp, sizeof(g_d3dpp));
 
-	if (g_window_size.fullscreen)
+	if (window_size_.fullscreen)
 	{
 		g_d3dpp.Windowed = FALSE;
-		g_d3dpp.BackBufferWidth = g_window_size.width;
-		g_d3dpp.BackBufferHeight = g_window_size.height;
+		g_d3dpp.BackBufferWidth = window_size_.width;
+		g_d3dpp.BackBufferHeight = window_size_.height;
 	}
 	else
 		g_d3dpp.Windowed = TRUE;
@@ -91,7 +97,22 @@ int Viewer::Init() {
 		return false;
 	}
 
-	g_D3DDevice->CreateOffscreenPlainSurface(g_window_size.width, g_window_size.height, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &single_src_surface, NULL);
+	//update width and height based on the current map
+	D3DDEVICE_CREATION_PARAMETERS cparams;
+	RECT rect;
+	g_D3DDevice->GetCreationParameters(&cparams);
+	GetWindowRect(cparams.hFocusWindow, &rect);	
+	window_size_.width = rect.right - rect.left;
+	window_size_.height = rect.bottom - rect.top;
+
+	//update width and height for the decoder
+	controller_->decode_status_->width = window_size_.width;
+	controller_->decode_status_->height = window_size_.height;
+
+	//init the offscreen surface
+	g_D3DDevice->CreateOffscreenPlainSurface(window_size_.width, window_size_.height, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &single_src_surface_, NULL);
+	g_D3DDevice->CreateOffscreenPlainSurface(window_size_.width, window_size_.height, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &single_src_surface_extra_, NULL);
+	g_D3DDevice->CreateOffscreenPlainSurface(window_size_.width * 2, window_size_.height + 1, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &stereo_src_surface_, NULL);
 
 	return true;
 }
@@ -113,36 +134,53 @@ void Viewer::CleanUp()
 
 int Viewer::Reader() {
 
-	if (g_decode_status.visual_status == 0)
+	if (controller_->decode_status_->visual_status == -1)
 	{
 		//if (FAILED(D3DXLoadSurfaceFromFile(single_src_surface, NULL, NULL, ".//resources//background.jpg", NULL, D3DX_FILTER_NONE, 0, NULL)))
 		//	return false;
-		dst_surface_ = single_src_surface;
+		dst_surface_ = single_src_surface_;
 	}
-	else if (g_decode_status.visual_status == 1)
+	else if (controller_->decode_status_->visual_status == 0 || controller_->decode_status_->visual_status == 1)
 	{
-		single_src_surface->LockRect(&lr, NULL, 0);
-		
-		single_src_surface->UnlockRect();
+		single_src_surface_->LockRect(&lr_, NULL, 0);
 
-		dst_surface_ = single_src_surface;
+		controller_->decoder_->Decode(0, lr_);
+
+		single_src_surface_->UnlockRect();
+
+		dst_surface_ = single_src_surface_;
 	}
-	else if (g_decode_status.visual_status == 2)
+	else if (controller_->decode_status_->visual_status == 2)
 	{
-		stereo_src_surface->LockRect(&lr, NULL, 0);
+		//copy image from single to stereo
+		RECT srcRect = { 0,0,window_size_.width,window_size_.height };
+		RECT dstRect = { 0,0,window_size_.width,window_size_.height };
+		RECT dstRect2 = { window_size_.width,0,window_size_.width * 2,window_size_.height };
 
+		//left
+		single_src_surface_->LockRect(&lr_, NULL, 0);
+		controller_->decoder_->Decode(0, lr_);
+		single_src_surface_->UnlockRect();
+		g_D3DDevice->StretchRect(single_src_surface_, &srcRect, stereo_src_surface_, &dstRect, D3DTEXF_LINEAR);
+
+		//right
+		single_src_surface_extra_->LockRect(&lr_, NULL, 0);
+		controller_->decoder_->Decode(1, lr_);
+		single_src_surface_extra_->UnlockRect();
+		g_D3DDevice->StretchRect(single_src_surface_extra_, &srcRect, stereo_src_surface_, &dstRect2, D3DTEXF_LINEAR);
+
+		//stereo tag
+		stereo_src_surface_->LockRect(&lr_, NULL, 0);
 		LPNVSTEREOIMAGEHEADER pSIH =
-			(LPNVSTEREOIMAGEHEADER)(((unsigned char *)lr.pBits) + (lr.Pitch * (g_window_size.height)));
-
+			(LPNVSTEREOIMAGEHEADER)(((unsigned char *)lr_.pBits) + (lr_.Pitch * (window_size_.height)));
 		pSIH->dwSignature = NVSTEREO_IMAGE_SIGNATURE;
 		pSIH->dwBPP = 32;
 		pSIH->dwFlags = SIH_SWAP_EYES;
-		pSIH->dwWidth = g_window_size.width * 2;
-		pSIH->dwHeight = g_window_size.height;
+		pSIH->dwWidth = window_size_.width * 2;
+		pSIH->dwHeight = window_size_.height;
+		stereo_src_surface_->UnlockRect();
 
-		stereo_src_surface->UnlockRect();
-
-		dst_surface_ = stereo_src_surface;
+		dst_surface_ = stereo_src_surface_;
 	}
 
 	return true;
@@ -156,7 +194,8 @@ int Viewer::Render() {
 	g_D3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &BackBuffer_);
 	g_D3DDevice->StretchRect(dst_surface_, NULL, BackBuffer_, NULL, D3DTEXF_LINEAR);
 
-	g_controller->Render();
+	//imgui render
+	controller_->ui_->Render();
 	g_D3DDevice->EndScene();
 
 	g_D3DDevice->Present(NULL, NULL, NULL, NULL);

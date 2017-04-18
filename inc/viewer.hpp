@@ -26,25 +26,30 @@ static D3DPRESENT_PARAMETERS g_d3dpp;
 //message process
 extern LRESULT ImGui_ImplDX9_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+class Controller;
+
 class Viewer {
 public:
-	Viewer();
+	Viewer(Controller * _controller);
 	~Viewer();
-	
+
 	int Display();
 
+	
 
 protected:
+	Viewer();
+
 	//initialze the D3D environment
 	int Init();
 	//Release and initialze the D3D and D3D devices
 	void CleanUp();
 
-	int CheckStatus();
 	//Read the data from decoder
 	int Reader();
 
 	int Render();
+	
 
 	//message process
 	static LRESULT CALLBACK WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wparma, LPARAM lparam);
@@ -58,12 +63,24 @@ private:
 	LPDIRECT3D9 D3D_ = NULL;
 
 	//surfaces use to reader the data from decoder
-	IDirect3DSurface9 *single_src_surface = NULL, *stereo_src_surface = NULL;
+	IDirect3DSurface9 *single_src_surface_ = NULL, *single_src_surface_extra_ = NULL, *stereo_src_surface_ = NULL;
 	//surfaces use to display the result to the screen
 	IDirect3DSurface9 *dst_surface_ = NULL, *BackBuffer_;
+	//locked rect use to copy the data from decoder
+	D3DLOCKED_RECT lr_;
 
-	//locked rect use to 
-	D3DLOCKED_RECT lr;
+	//controller
+	Controller * controller_;
 
-	
+	struct WindowSize {
+		LPCSTR name;
+		int width;
+		int height;
+		bool fullscreen;
+
+		WindowSize() : name("Player"), width(1920), height(1080), fullscreen(true) {}
+		WindowSize(int w, int h) : name("Player"), width(w), height(h), fullscreen(true) {}
+	};
+
+	WindowSize window_size_;
 };
