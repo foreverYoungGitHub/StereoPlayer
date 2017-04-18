@@ -12,9 +12,11 @@ struct DecodeStatus {
 	int height;
 	bool write_file;
 	bool multi_thread;
+	bool audio;
 	std::vector<std::string> input_address;
 	std::vector<std::string> output_address;
-	DecodeStatus() :visual_status(-1), decode_core(0), write_file(0), multi_thread(1) {}
+	std::string audio_address;
+	DecodeStatus() :visual_status(-1), decode_core(0), write_file(0), multi_thread(1), audio(false){}
 };
 
 class Viewer;

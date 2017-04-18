@@ -78,7 +78,7 @@ private:
 		int height;
 		bool fullscreen;
 
-		WindowSize() : name("Player"), width(1920), height(1080), fullscreen(true) {}
+		WindowSize() : name("Player"), width(1920), height(1080), fullscreen(false) {}
 		WindowSize(int w, int h) : name("Player"), width(w), height(h), fullscreen(true) {}
 	};
 

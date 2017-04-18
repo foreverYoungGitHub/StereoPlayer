@@ -241,6 +241,7 @@ int UI::MainUI() {
 		
 		controller_->decode_status_->visual_status = 2;
 		controller_->decode_status_->write_file = true;
+		//controller_->decode_status_->multi_thread = false;
 
 		controller_->BuildConnection();
 		windows_opened[0] = false;
@@ -397,7 +398,7 @@ ImGui::OpenPopup("file");
 
 	if (playlist_status_->select_item != -1)
 	{
-		if (ImGui::Button("Connect"))
+		if (ImGui::Button("Connect", ImVec2(100, 70)))
 		{
 			controller_->decode_status_->visual_status = playlist_status_->visual_status;
 			controller_->BuildConnection();
@@ -407,7 +408,7 @@ ImGui::OpenPopup("file");
 
 		ImGui::SameLine(150);
 
-		if (ImGui::Button("Delete"))
+		if (ImGui::Button("Delete", ImVec2(100, 70)))
 		{
 			playlist_status_->playlist_items.erase(playlist_status_->playlist_items.begin() + playlist_status_->select_item);
 			WriteCSV();
@@ -417,7 +418,7 @@ ImGui::OpenPopup("file");
 
 		ImGui::SameLine(300);
 
-		if (ImGui::Button("Back"))
+		if (ImGui::Button("Back", ImVec2(100, 70)))
 		{
 			playlist_status_->input_mode = 0;
 			playlist_status_->select_item = -1;
@@ -425,7 +426,7 @@ ImGui::OpenPopup("file");
 
 		ImGui::SameLine(450);
 
-		if (ImGui::Button("Back to Main Menu"))
+		if (ImGui::Button("Back to Main Menu", ImVec2(130, 70)))
 		{
 			playlist_status_->input_mode = 0;
 			playlist_status_->select_item = -1;
@@ -449,16 +450,16 @@ ImGui::OpenPopup("file");
 			ImGui::RadioButton("Stereo Video", &playlist_status_->visual_status, 2);
 		}
 
-		ImGui::Text("Decode Core");
-		{
-			ImGui::RadioButton("ffmpeg core", &controller_->decode_status_->decode_core, 0); ImGui::SameLine(150);
-			ImGui::RadioButton("opencv core", &controller_->decode_status_->decode_core, 1);
-		}
+		//ImGui::Text("Decode Core");
+		//{
+		//	ImGui::RadioButton("ffmpeg core", &controller_->decode_status_->decode_core, 0); ImGui::SameLine(150);
+		//	ImGui::RadioButton("opencv core", &controller_->decode_status_->decode_core, 1);
+		//}
 	}
 
 	{
 		if (controller_->decode_status_->write_file == true) {
-			if (controller_->decode_status_->visual_status != 2 || controller_->decode_status_->decode_core != 0) {
+			if (playlist_status_->visual_status != 2 || controller_->decode_status_->decode_core != 0) {
 				controller_->decode_status_->write_file = false;
 				AbortUI("Only can write file in FFMpeg with stereo mode");
 			}

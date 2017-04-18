@@ -32,18 +32,21 @@ private:
 	int Init();
 	int Init_ffmpeg();
 	int Init_ffmpeg_thread();
+	int Init_ffmpeg_audio_thread();
 	int Init_cv();
 	int Init_cv_thread();
-
+	
 	int Capture(int i);
 	int Capture_ffmpeg(int index);
 	int Capture_ffmpeg_thread(int index);
+	int Capture_ffmpeg_audio_thread();
 	int Capture_cv(int index);
 	int Capture_cv_thread(int index);
 	
 	int stopCapture();
 	int stopCapture_cv();
 	int stopCapture_ffmpeg();
+	int stopCapture_ffmpeg_audio();
 
 	int Decode_cv(int index, D3DLOCKED_RECT lockedrect);
 	int Decode_ffmpeg(int index, D3DLOCKED_RECT lockedrect);
@@ -90,4 +93,14 @@ private:
 	std::vector<int> videoindex_;
 	std::vector<int> stream_mapping_size_;
 	std::vector<int *> stream_mapping_;
+
+	//variable for audio
+	AVFormatContext * FormatCtx_audio_;
+	AVCodecContext * CodecCtx_audio_;
+	AVFrame * Frame_audio_;
+	int audio_index_;
+	struct SwrContext * convert_ctx_audio_;
+	uint8_t * out_buffer_audio_;
+	int out_buffer_size_audio_;
+	std::thread * audio_thread_;
 };

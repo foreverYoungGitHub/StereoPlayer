@@ -2,6 +2,22 @@
 #include "../inc/decoder.hpp"
 #include "../inc/ui.hpp"
 
+#define __STDC_CONSTANT_MACROS
+
+extern "C"
+{
+#include <libavcodec\avcodec.h>
+#include <libavformat\avformat.h>
+#include <libswresample\swresample.h>
+#include <SDL.h>
+};
+
+#define Max_AUDIO_FRAME_SIZE 192000 
+
+static Uint8 * audio_chunk;
+static Uint32 audio_len;
+static Uint8 * audio_pos;
+
 Decoder::Decoder() {
 	//input_address_ = g_decode_status.input_address;
 	//camera_count_ = input_address_.size();
@@ -31,17 +47,29 @@ Decoder::Decoder(DecodeStatus * _decode_status) : Decoder() {
 	//	"C:\\3DPlayerSavedVideo\\Titanic-right.mkv"
 	//};
 	//decode_status_->input_address = input_address;
+	//decode_status_->audio = true;
+	//decode_status_->audio_address = "C:\\3DPlayerSavedVideo\\StephanieSays.mp3";
+	
 
 	if (!Init()) {
 		_decode_status = new DecodeStatus;
 		this->~Decoder();
 	}
+
+	if (decode_status_->audio) {
+		hold_thread_ = true;
+		Init_ffmpeg_audio_thread();
+	}
+
+	
 }
 
 Decoder::~Decoder() {
 	stopCapture();
 	if(decode_status_->write_file)
 		stopRemux();
+	if (decode_status_->audio) 
+		stopCapture_ffmpeg_audio();
 }
 
 int Decoder::Init() {
@@ -75,7 +103,7 @@ int Decoder::Init_ffmpeg()
 	avformat_network_init();
 
 	//info from decode_status_
-	int camera_count = decode_status_->input_address.size();
+	int camera_count = min(decode_status_->input_address.size(),2);
 	std::vector<std::string> input_address = decode_status_->input_address;
 	int dst_width = decode_status_->width;
 	int dst_height = decode_status_->height;
@@ -169,6 +197,133 @@ int Decoder::Init_ffmpeg()
 	return true;
 }
 
+void fill_audio(void * udata, Uint8 * stream, int len)
+{
+	SDL_memset(stream, 0, len);
+	if (audio_len == 0)
+		return;
+
+	len = (len > audio_len ? audio_len : len);
+
+	SDL_MixAudio(stream, audio_pos, len, SDL_MIX_MAXVOLUME);
+	audio_pos += len;
+	audio_len -= len;
+}
+
+int Decoder::Init_ffmpeg_audio_thread() {
+	AVFormatContext * pFormatCtx;
+	int audiostream;
+	AVCodecContext * pCodecCtx;
+	AVCodec * pCodec;
+	uint8_t * out_buffer;
+	AVFrame * pFrame;
+	int64_t in_channel_layout;
+	SDL_AudioSpec wanted_spec; //for audio
+	struct SwrContext * au_convert_ctx;
+
+	pFormatCtx = avformat_alloc_context();
+
+	//open url
+	if (avformat_open_input(&pFormatCtx, decode_status_->audio_address.c_str(), NULL, NULL) != 0)
+	{
+		printf("Cound not open input stream");
+		return -1;
+	}
+
+	if (avformat_find_stream_info(pFormatCtx, NULL) < 0)
+	{
+		printf("Could not find the infomation");
+		return -1;
+	}
+
+	//av_dump_format(pFormatCtx, 0, url, false);
+
+	audiostream = -1;
+	for (int i = 0; i < pFormatCtx->nb_streams; i++)
+	{
+		if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
+		{
+			audiostream = i;
+			break;
+		}
+	}
+	if (audiostream == -1)
+	{
+		printf("there is no audio stream exits");
+		return -1;
+	}
+
+	pCodecCtx = pFormatCtx->streams[audiostream]->codec;
+	pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
+	if (pCodec == NULL)
+	{
+		printf("Codec not found");
+		return -1;
+	}
+
+	if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0)
+	{
+		printf("Could not open codec");
+		return -1;
+	}
+
+
+	//audio param
+	uint64_t out_channel_layout = AV_CH_LAYOUT_STEREO;
+	int out_nb_samples = pCodecCtx->frame_size;
+	AVSampleFormat out_sample_format = AV_SAMPLE_FMT_S16;
+	int out_sample_rate = 44100;
+	int out_channels = av_get_channel_layout_nb_channels(out_channel_layout);
+	int out_buffer_size = av_samples_get_buffer_size(NULL, out_channels, out_nb_samples, out_sample_format, 1);
+
+	out_buffer = (uint8_t *)av_malloc(Max_AUDIO_FRAME_SIZE * 2);
+	pFrame = av_frame_alloc();
+
+	in_channel_layout = av_get_default_channel_layout(pCodecCtx->channels);
+
+	//SDL
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER))
+	{
+		printf("could not init SDL: %s", SDL_GetError());
+		return -1;
+	}
+
+	wanted_spec.freq = out_sample_rate;
+	wanted_spec.format = AUDIO_S16SYS;
+	wanted_spec.channels = out_channels;
+	wanted_spec.silence = 0;
+	wanted_spec.samples = out_nb_samples;
+	wanted_spec.callback = fill_audio;
+	wanted_spec.userdata = pCodecCtx;
+
+	if (SDL_OpenAudio(&wanted_spec, NULL) < 0)
+	{
+		printf("can not open audio by SDL.");
+		return -1;
+	}
+
+	//swr??
+	au_convert_ctx = swr_alloc();
+	au_convert_ctx = swr_alloc_set_opts(au_convert_ctx, out_channel_layout, out_sample_format, out_sample_rate, in_channel_layout, pCodecCtx->sample_fmt, pCodecCtx->sample_rate, 0, NULL);
+	swr_init(au_convert_ctx);
+
+	SDL_PauseAudio(0);
+
+	FormatCtx_audio_ = pFormatCtx;
+	CodecCtx_audio_ = pCodecCtx;
+	Frame_audio_ = pFrame;
+	audio_index_ = audiostream;
+	out_buffer_audio_ = out_buffer;
+	out_buffer_size_audio_ = out_buffer_size;
+	convert_ctx_audio_ = au_convert_ctx;
+
+	std::thread * t = new std::thread(&Decoder::Capture_ffmpeg_audio_thread, this);
+
+	audio_thread_ = t;
+	return true;
+}
+
+
 int Decoder::Init_cv()
 {
 	cv::VideoCapture *capture;
@@ -176,7 +331,7 @@ int Decoder::Init_cv()
 	bool writeState = true;
 
 	//info from decode_status_
-	int camera_count = decode_status_->input_address.size();
+	int camera_count = min(decode_status_->input_address.size(), 2);
 	std::vector<std::string> input_address = decode_status_->input_address;
 	std::vector<std::string> output_address = decode_status_->output_address;
 	int dst_width = decode_status_->width;
@@ -215,7 +370,7 @@ int Decoder::Init_ffmpeg_thread()
 	avformat_network_init();
 
 	//info from decode_status_
-	int camera_count = decode_status_->input_address.size();
+	int camera_count = min(decode_status_->input_address.size(), 2);
 	std::vector<std::string> input_address = decode_status_->input_address;
 	int dst_width = decode_status_->width;
 	int dst_height = decode_status_->height;
@@ -327,7 +482,7 @@ int Decoder::Init_cv_thread()
 	//concurrency::concurrent_queue<unsigned char *> *p;
 
 	//info from decode_status_
-	int camera_count = decode_status_->input_address.size();
+	int camera_count = min(decode_status_->input_address.size(), 2);
 	std::vector<std::string> input_address = decode_status_->input_address;
 	std::vector<std::string> output_address = decode_status_->output_address;
 	int dst_width = decode_status_->width;
@@ -418,6 +573,7 @@ int Decoder::Capture_ffmpeg_thread(int index) {
 			Remux(index);
 		}
 
+		//mtx_.lock();
 		//int ret;
 		//if (packet_[index]) {
 		//	ret = avcodec_send_packet(CodecCtx_[index], packet_[index]);
@@ -425,11 +581,15 @@ int Decoder::Capture_ffmpeg_thread(int index) {
 		//		return ret;
 		//	}
 		//}
+		//mtx_.unlock();
 
-		//ret = avcodec_receive_frame(CodecCtx_[index], Frame_[index]);
+		//mtx_.lock();
+		//int ret = avcodec_receive_frame(CodecCtx_[index], Frame_[index]);
 		//if (ret < 0 && ret != AVERROR(EAGAIN)) {
 		//	return ret;
 		//}
+		//mtx_.unlock();
+
 		int got_picture;
 		if (avcodec_decode_video2(CodecCtx_[index], frame, &got_picture, packet_[index]) < 0)
 		{
@@ -448,6 +608,40 @@ int Decoder::Capture_ffmpeg_thread(int index) {
 	return true;
 }
 
+int Decoder::Capture_ffmpeg_audio_thread() {
+
+	AVPacket * packet; 
+	packet = (AVPacket *)av_malloc(sizeof(AVPacket));
+	av_init_packet(packet);
+
+	while (av_read_frame(FormatCtx_audio_, packet) >= 0 && hold_thread_)
+	{
+		if (packet->stream_index == audio_index_)
+		{
+			int got_picture;
+			if (avcodec_decode_audio4(CodecCtx_audio_, Frame_audio_, &got_picture, packet) < 0)
+			{
+				printf("error in decoding audio frame.\n");
+				return -1;
+			}
+			if (got_picture > 0)
+			{
+				swr_convert(convert_ctx_audio_, &out_buffer_audio_, Max_AUDIO_FRAME_SIZE, (const uint8_t **)Frame_audio_->data, Frame_audio_->nb_samples);
+			}
+
+			//SDL
+			while (audio_len > 0)
+				SDL_Delay(1);
+
+			audio_chunk = (Uint8 *)out_buffer_audio_;
+			audio_len = out_buffer_size_audio_;
+			audio_pos = audio_chunk;
+		}
+		av_free_packet(packet);
+	}
+
+	return true;
+}
 
 int Decoder::Capture_cv(int index)
 {
@@ -540,6 +734,23 @@ int Decoder::stopCapture_ffmpeg()
 		avformat_close_input(&FormatCtx_[i]);
 	}
 	decode_status_->input_address.clear();
+	return true;
+}
+
+int Decoder::stopCapture_ffmpeg_audio()
+{
+	hold_thread_ = false;
+
+	if (audio_thread_->joinable())
+		audio_thread_->join();
+
+	swr_free(&convert_ctx_audio_);
+	SDL_CloseAudio();
+	SDL_Quit();
+
+	av_free(out_buffer_audio_);
+	avcodec_close(CodecCtx_audio_);
+	avformat_close_input(&FormatCtx_audio_);
 	return true;
 }
 
@@ -789,7 +1000,7 @@ int Decoder::Remux_ffmpeg(int index) {
 		printf("Error muxing packet\n");
 		return -1;
 	}
-	av_packet_unref(&pkt);
+	//av_packet_unref(&pkt);
 	return true;
 }
 
